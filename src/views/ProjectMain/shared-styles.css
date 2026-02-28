@@ -1,0 +1,133 @@
+/**
+ * Shared styles for ProjectMain views
+ * Theme-aware components
+ */
+
+/* Main container */
+.project-main-view {
+  min-height: 100vh;
+  padding: 32px;
+  background: var(--bg);
+}
+
+/* Section cards */
+.section-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 2px 8px var(--shadow);
+  transition: all 0.3s ease;
+}
+
+.section-card:hover {
+  box-shadow: 0 4px 16px var(--shadow);
+}
+
+/* Header sections */
+.section-header {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 2px 8px var(--shadow);
+  margin-bottom: 20px;
+}
+
+/* Toolbar/Action bar */
+.action-toolbar {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+/* Table overrides for theme */
+:deep(.el-table) {
+  background: var(--surface);
+  color: var(--text);
+}
+
+:deep(.el-table th) {
+  background: var(--muted);
+  color: var(--text);
+  border-color: var(--border);
+}
+
+:deep(.el-table td) {
+  border-color: var(--border);
+}
+
+:deep(.el-table tr:hover > td) {
+  background: color-mix(in srgb, var(--surface) 95%, var(--accent));
+}
+
+/* Input overrides */
+:deep(.el-input__inner) {
+  background: var(--surface);
+  border-color: var(--border);
+  color: var(--text);
+}
+
+:deep(.el-input__inner):focus {
+  border-color: var(--accent);
+}
+
+:deep(.el-textarea__inner) {
+  background: var(--surface);
+  border-color: var(--border);
+  color: var(--text);
+}
+
+:deep(.el-textarea__inner):focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 20%, transparent);
+}
+
+/* Select overrides */
+:deep(.el-select .el-input__inner) {
+  background: var(--surface);
+  border-color: var(--border);
+  color: var(--text);
+}
+
+/* Button group */
+.button-group {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+/* Card grid */
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 20px;
+}
+
+/* Status badges */
+.status-badge {
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.status-success {
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+  color: var(--accent);
+}
+
+.status-warning {
+  background: color-mix(in srgb, #f39c12 15%, transparent);
+  color: #f39c12;
+}
+
+.status-error {
+  background: color-mix(in srgb, #e74c3c 15%, transparent);
+  color: #e74c3c;
+}
+

@@ -1,0 +1,530 @@
+<template>
+  <div class="entity-library">
+    <h3>{{ config.title }}</h3>
+    
+    <!-- Settings area -->
+    <el-row :gutter="24" class="settings-row">
+      <el-col :span="24">
+        <ImageSettingsControl v-model="imageSettings" />
+      </el-col>
+    </el-row>
+
+    <!-- Action bar -->
+    <div class="header-container">
+      <el-button type="primary" @click="openCreateDialog">
+        {{ config.createButtonText }}
+      </el-button>
+      <el-button
+        type="success"
+        @click="generateImagesForSelected"
+        :loading="isGenerating"
+        :disabled="selectedEntities.length === 0"
+      >
+        {{ t('storyboardProcess.generateSelectedImages') }}
+      </el-button>
+      <div class="search-container">
+        <el-input
+          v-model="searchQuery"
+          :placeholder="t('common.search')"
+          :prefix-icon="Search"
+          clearable
+        />
+      </div>
+    </div>
+
+    <!-- Progress display -->
+    <el-row v-if="generationProgress.taskId" :gutter="24" class="progress-row">
+      <el-col :span="24">
+        <div class="settings-group">
+          <div class="settings-title">{{ t('storyboardProcess.generationProgress') }}</div>
+          <div class="progress-container">
+            <el-progress
+              :percentage="generationProgress.total > 0 ? Math.floor((generationProgress.current / generationProgress.total) * 100) : 0"
+              :format="() => `${generationProgress.current}/${generationProgress.total}`"
+              :status="generationProgress.status === 'error' ? 'exception' : generationProgress.status === 'completed' ? 'success' : ''"
+              :duration="1"
+            />
+            <el-button type="danger" @click="stop" style="margin-left: 10px; margin-top: 5px;">
+              {{ t('storyboardProcess.stopGeneration') }}
+            </el-button>
+          </div>
+        </div>
+      </el-col>
+    </el-row>
+
+    <!-- Entity table -->
+    <el-table
+      v-loading="loading"
+      :data="filteredEntities"
+      @selection-change="handleSelectionChange"
+      style="width: 100%"
+      border
+    >
+      <el-table-column type="selection" width="55" align="center" />
+      <el-table-column
+        :label="t('entity.entityName')"
+        prop="name"
+        width="120"
+        align="center"
+      >
+        <template #default="{ row }">
+          <span class="entity-name">{{ row.name }}</span>
+        </template>
+      </el-table-column>
+      
+      <!-- Dynamic column -->
+      <el-table-column v-if="entityType === 'character'" :label="t('entity.role')" width="150" align="center">
+        <template #default="{ row }">
+          <el-input v-model="row.attributes.role" type="textarea" :rows="2" :placeholder="t('entity.role')" :disabled="isLocked(row.name)"/>
+        </template>
+      </el-table-column>
+      <el-table-column :label="t('entity.description')" min-width="240" align="center">
+        <template #default="{ row }">
+          <el-input v-model="row.attributes.description" type="textarea" :rows="5" :placeholder="t('entity.description')" :disabled="isLocked(row.name)"/>
+        </template>
+      </el-table-column>
+
+      <el-table-column :label="t('entity.referenceImage')" width="200" align="center">
+        <template #default="{ row }">
+          <div>
+            <el-image v-if="row.reference_image" :src="row.reference_image" fit="contain" :preview-src-list="[row.reference_image]" :initial-index="0" preview-teleported height="90%">
+              <template #error><div class="no-image">{{ t('common.loadError') }}</div></template>
+            </el-image>
+            <el-button 
+              type="primary" 
+              style="min-width: 120px; margin-top: 10px;" 
+              @click="generateImage(row)"
+              :loading="isGenerating"
+              :disabled="isGenerating"
+            >{{ t('entity.generateImage') }}</el-button>
+          </div>
+        </template>
+      </el-table-column>
+      
+      <el-table-column :label="t('common.operations')" width="360" align="center">
+        <template #default="{ row }">
+          <div class="operation-buttons">
+            <div class="button-row" v-if="entityType === 'character'">
+              <el-button :type="isLocked(row.name) ? 'warning' : 'primary'" @click="handleLockClick(row)">
+                {{ isLocked(row.name) ? t('entity.unlockPrompt') : t('entity.lockPrompt') }}
+              </el-button>
+            </div>
+            <div class="button-row">
+              <el-button type="success" :disabled="isLocked(row.name)" @click="saveEntity(row)">
+                {{ t('entity.savePrompt') }}
+              </el-button>
+              <el-button type="danger" :disabled="isLocked(row.name)" @click="deleteEntity(row)">
+                {{ t('entity.delete') }}
+              </el-button>
+            </div>
+          </div>
+        </template>
+      </el-table-column>
+    </el-table>
+
+    <!-- Create entity dialog -->
+    <el-dialog v-model="createDialogVisible" :title="config.createDialogTitle" width="600px">
+      <div class="create-entity-form">
+        <el-form :model="newEntity" label-width="120px">
+          <el-form-item :label="t('entity.entityName')" required>
+            <el-input v-model="newEntity.name" />
+          </el-form-item>
+          <el-form-item v-if="entityType === 'character'" :label="t('entity.role')">
+            <el-input v-model="newEntity.attributes.role" type="textarea" :rows="2" :placeholder="t('entity.role')"/>
+          </el-form-item>
+          <el-form-item :label="t('entity.description')">
+            <el-input v-model="newEntity.attributes.description" type="textarea" :rows="5" :placeholder="t('entity.description')"/>
+          </el-form-item>
+        </el-form>
+        <div class="dialog-footer">
+          <el-button @click="createDialogVisible = false">{{ t('entity.cancel') }}</el-button>
+          <el-button type="primary" @click="createEntity">{{ t('entity.create') }}</el-button>
+        </div>
+      </div>
+    </el-dialog>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { ref, computed, onMounted, reactive, watch } from 'vue';
+import { useRoute } from 'vue-router';
+import { useI18n } from 'vue-i18n';
+import { ElMessage, ElMessageBox } from 'element-plus';
+import { Search } from '@element-plus/icons-vue';
+import { entityApi } from '@/api/entity_api';
+import { mediaApi } from '@/api/media_api';
+import { getResourcePath } from '@/utils/resourcePath';
+import { useGeneration } from '@/composables/useGeneration';
+import { usePromptStyleStore } from '@/store/usePromptStyleStore';
+import type { ImageSettings } from '@/types/imageSettings';
+import ImageSettingsControl from '@/components/ImageSettingsControl.vue';
+
+const route = useRoute();
+const { t } = useI18n();
+
+const entityType = computed(() => route.params.entityType as 'character' | 'scene');
+const projectName = computed(() => route.params.name as string);
+
+// --- Composable functions ---
+const { isGenerating, generationProgress, start, stop } = useGeneration();
+const promptStyleStore = usePromptStyleStore();
+
+// --- Interface definitions ---
+interface Entity {
+  name: string;
+  attributes: {
+    role?: string;
+    description?: string;
+    [key: string]: any;
+  };
+  reference_image?: string;
+}
+
+// --- Component state ---
+const loading = ref(false);
+const entities = ref<Entity[]>([]);
+const selectedEntities = ref<Entity[]>([]);
+const lockedEntities = ref<string[]>([]);
+const searchQuery = ref('');
+const createDialogVisible = ref(false);
+
+const newEntity = reactive<Entity>({
+  name: '',
+  attributes: { role: '', description: '' },
+});
+
+const imageSettings = ref<ImageSettings>({
+  width: 512,
+  height: 768,
+  style: 'sai-anime'
+});
+
+// --- Dynamic configuration based on entity type ---
+const config = computed(() => {
+  const isCharacter = entityType.value === 'character';
+  return {
+    title: isCharacter ? t('menu.characterLibrary') : t('menu.sceneLibrary'),
+    createButtonText: isCharacter ? t('entity.createCharacter') : t('entity.createScene'),
+    createDialogTitle: isCharacter ? t('entity.createCharacterTitle') : t('entity.createSceneTitle'),
+    fetchApi: isCharacter ? entityApi.getCharacterList : entityApi.getSceneList,
+    createApi: isCharacter ? entityApi.createCharacter : entityApi.createScene,
+    updateApi: isCharacter ? entityApi.updateCharacter : entityApi.updateScene,
+    deleteApi: isCharacter ? entityApi.deleteCharacter : entityApi.deleteScene,
+    imageChapter: isCharacter ? 'Character' : 'Scene',
+  };
+});
+
+// --- Data fetching and processing ---
+const fetchEntities = async () => {
+  loading.value = true;
+  try {
+    const data = await config.value.fetchApi(projectName.value);
+    if (entityType.value === 'character') {
+      entities.value = data.characters.map((char: any) => ({
+        ...char,       
+        reference_image: getResourcePath(projectName.value, config.value.imageChapter, char.name, 'image')
+      }));
+      lockedEntities.value = data.locked_entities || [];
+    } else {
+      entities.value = Object.entries(data.scenes).map(([name, prompt]) => ({
+        name,
+        attributes: { description: prompt as string },
+        reference_image: getResourcePath(projectName.value, config.value.imageChapter, name, 'image')
+      }));
+    }
+  } catch (error) {
+    ElMessage.error(String(error));
+  } finally {
+    loading.value = false;
+    console.log("Entities: ", entities.value);
+  }
+};
+
+const filteredEntities = computed(() => {
+  const query = searchQuery.value.toLowerCase().trim();
+  if (!query) return entities.value;
+  return entities.value.filter(e => e.name.toLowerCase().includes(query));
+});
+
+const handleSelectionChange = (selection: Entity[]) => {
+  selectedEntities.value = selection;
+};
+
+// --- CRUD operations ---
+const openCreateDialog = () => {
+  Object.assign(newEntity, { name: '', attributes: { role: '', description: '' } });
+  createDialogVisible.value = true;
+};
+
+const createEntity = async () => {
+  if (!newEntity.name.trim()) {
+    ElMessage.error(t('entity.nameRequired'));
+    return;
+  }
+  try {
+    const payload = entityType.value === 'character'
+      ? newEntity
+      : { name: newEntity.name, prompt: newEntity.attributes.description || '' };
+
+    await config.value.createApi(projectName.value, payload as any);
+    ElMessage.success(t('entity.createSuccess'));
+    createDialogVisible.value = false;
+    await fetchEntities();
+  } catch (error) {
+    ElMessage.error(String(error) || t('entity.createError'));
+  }
+};
+
+const saveEntity = async (row: Entity) => {
+  try {
+    const payload = entityType.value === 'character'
+      ? { name: row.name, attributes: row.attributes }
+      : { name: row.name, prompt: row.attributes.description || '' };
+
+    await config.value.updateApi(projectName.value, payload as any);
+    ElMessage.success(t('entity.updateSuccess'));
+  } catch (error) {
+    ElMessage.error(String(error));
+  }
+};
+
+const deleteEntity = async (row: Entity) => {
+  try {
+    await ElMessageBox.confirm(t('entity.deleteConfirm'), t('common.warning'), { type: 'warning' });
+    await config.value.deleteApi(projectName.value, row.name);
+    ElMessage.success(t('entity.deleteSuccess'));
+    await fetchEntities();
+  } catch (error) {
+    if (error !== 'cancel') ElMessage.error(t('entity.operationFailed'));
+  }
+};
+
+// --- Character-specific logic ---
+const isLocked = (name: string) => {
+  return entityType.value === 'character' && lockedEntities.value.includes(name);
+};
+
+const handleLockClick = async (row: Entity) => {
+  if (entityType.value !== 'character') return;
+  const action = () => entityApi.toggleLock(projectName.value, row.name).then(response => {
+    if (response.is_locked) {
+      ElMessage.success(t('entity.lockSuccess'));
+    } else {
+      ElMessage.success(t('entity.unlockSuccess'));
+    }
+    fetchEntities();
+  }).catch(() => ElMessage.error(t('entity.operationFailed')));
+  
+  if (!isLocked(row.name)) {
+    ElMessageBox.confirm(t('entity.lockConfirmContent'), t('entity.lockConfirmTitle'), { type: 'warning' }).then(action);
+  } else {
+    action();
+  }
+};
+
+// --- Image generation ---
+const generateImage = async (row: Entity) => {
+  let prompts = [];
+  // Enhance prompt
+  if (entityType.value === 'character') {
+    prompts = [{
+      id: row.name,
+      prompt: row.attributes.description +
+        ", full body, facing forward, front view, standing in a neutral pose, camera at a far distance, entire figure visible, plain light gray monochromatic background, minimalist environment, subtle shadow, no close-up, no text, no logo, no watermark"
+    }];
+  } else {
+    prompts = [{ id: row.name, prompt: row.attributes.description + ", no human, wide-angle lens, establishing shot, vast environment, depth of field, cinematic scale" || '' }];
+  }
+  start(prompts, () => mediaApi.generateImages({
+    project_name: projectName.value,
+    chapter_name: config.value.imageChapter,
+    imageSettings: imageSettings.value,
+    prompts,
+  }));
+};
+
+const generateImagesForSelected = () => {
+  const prompts = selectedEntities.value
+    .filter(e => e.attributes.description)
+    .map(e => ({ id: e.name, prompt: e.attributes.description || '' }));
+  console.log("Prompts: ", prompts);
+  
+  start(prompts, () => mediaApi.generateImages({
+    project_name: projectName.value,
+    chapter_name: config.value.imageChapter,
+    imageSettings: imageSettings.value,
+    prompts,
+  }));
+};
+
+watch(isGenerating, (newValue, oldValue) => {
+  if (oldValue === true && newValue === false) {
+    setTimeout(() => fetchEntities(), 1000);
+  }
+});
+
+// Watch for single image completion events
+watch(() => [...generationProgress.completedIds], (newIds, oldIds) => {
+  if (newIds.length > oldIds.length) {
+    const lastCompletedId = newIds[newIds.length - 1];
+    const entity = entities.value.find(e => e.name === lastCompletedId);
+    if (entity) {
+      entity.reference_image = getResourcePath(projectName.value, config.value.imageChapter, entity.name, 'image');
+    }
+  }
+});
+
+watch(entityType, () => {
+    fetchEntities();
+    if (entityType.value === 'scene') {
+      imageSettings.value.width = 768;
+      imageSettings.value.height = 768;
+    } else {
+      imageSettings.value.width = 512;
+      imageSettings.value.height = 768;
+    }
+});
+
+// --- Lifecycle hooks ---
+onMounted(() => {
+  fetchEntities();
+  promptStyleStore.fetchStyles();
+});
+</script>
+
+<style scoped>
+.entity-library { 
+  padding: 32px;
+  min-height: 100vh;
+  background: var(--bg);
+}
+
+h3 {
+  font-size: 28px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 24px;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.header-container { 
+  display: flex; 
+  justify-content: space-between; 
+  align-items: center; 
+  margin-bottom: 24px; 
+  flex-wrap: wrap; 
+  gap: 12px; 
+  padding: 16px;
+  background: var(--surface);
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+}
+
+.search-container { max-width: 300px; margin-left: auto; }
+.search-container :deep(.el-input__wrapper) {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: none;
+}
+
+.progress-row { margin-bottom: 20px; }
+.settings-group { 
+  background: var(--surface);
+  border-radius: 12px; 
+  padding: 20px;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+}
+
+.settings-title { 
+  font-size: 16px; 
+  color: var(--text);
+  margin-bottom: 16px; 
+  font-weight: 600;
+}
+
+.progress-container { display: flex; align-items: center; gap: 10px; }
+.progress-container :deep(.el-progress) { flex: 1; }
+.operation-buttons { display: flex; flex-direction: column; gap: 8px; }
+.button-row { display: flex; gap: 8px; justify-content: center; }
+.button-row .el-button { flex: 1; min-width: 110px; }
+.entity-name { display: inline-block; line-height: 40px; height: 40px; color: var(--text); }
+
+.dialog-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+.create-entity-form { padding: 10px; }
+
+:deep(.el-table) {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+:deep(.el-table__header) {
+  background: var(--muted);
+}
+
+:deep(.el-table__cell) { 
+  padding: 12px 8px;
+  background: var(--surface);
+  border-color: var(--border);
+}
+
+:deep(.el-table .cell) { 
+  white-space: pre-wrap; 
+  word-break: break-word; 
+  line-height: 1.5;
+  color: var(--text);
+}
+
+:deep(.el-table__header .cell) { 
+  font-weight: 600;
+  color: var(--text);
+}
+
+:deep(.el-table__body-wrapper .el-table__row:hover > td) {
+  background: var(--muted) !important;
+}
+
+:deep(.el-dialog) {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+}
+
+:deep(.el-dialog__header) {
+  border-bottom: 1px solid var(--border);
+  padding: 20px;
+}
+
+:deep(.el-dialog__title) {
+  color: var(--text);
+  font-weight: 600;
+}
+
+:deep(.el-dialog__body) {
+  padding: 24px;
+  background: var(--bg);
+}
+
+.settings-row {
+  margin-bottom: 20px;
+}
+
+.settings-row :deep(.el-input__wrapper),
+.settings-row :deep(.el-textarea__inner) {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+
+.no-image {
+  color: var(--subtext);
+  font-size: 14px;
+}
+</style>

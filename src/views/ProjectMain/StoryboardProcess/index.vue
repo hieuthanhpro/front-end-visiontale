@@ -1,0 +1,872 @@
+<template>
+  <div class="storyboard-process">
+    <el-card class="scene-table-card">
+      <template #header>
+        <div class="card-header">
+          <span>{{ t('storyboardProcess.sceneList') }}</span>
+        </div>
+      </template>
+
+      <!-- Settings area -->
+      <div class="settings-container">
+        <!-- First row: Chapter selection -->
+        <el-row class="settings-row">
+          <el-col :span="24">
+            <el-select v-model="chapterName" :placeholder="t('storyboardProcess.chapterList')" class="chapter-select"
+                       @change="handleChapterChange">
+              <el-option v-for="chapter in chapterList" :key="chapter.value" :label="chapter.label"
+                         :value="chapter.value" />
+            </el-select>
+          </el-col>
+        </el-row>
+
+        <!-- Second row: Image settings -->
+        <el-row :gutter="24" class="settings-row">
+          <el-col :span="24">
+            <ImageSettingsControl v-model="imageSettings" />
+          </el-col>
+        </el-row>
+
+        <!-- Third row: Audio settings -->
+        <el-row :gutter="24" class="settings-row">
+          <el-col :span="24">
+            <div class="settings-group">
+              <div class="settings-title">{{ t('storyboardProcess.audioSettings') }}</div>
+              <el-row :gutter="12">
+                <el-col :span="16">
+                  <div class="input-with-label">
+                    <span class="input-label">{{ t('storyboardProcess.selectVoice') }}</span>
+                    <el-select v-model="audioSettings.narrator" :placeholder="t('storyboardProcess.selectVoice')"
+                               class="narrator-select">
+                      <el-option v-for="voice in voiceList" :key="voice.value" :label="voice.label" :value="voice.value" />
+                    </el-select>
+                  </div>
+                </el-col>
+                <el-col :span="8">
+                  <div class="input-with-label">
+                    <span class="input-label">{{ t('storyboardProcess.speakingRate') }}</span>
+                    <el-input-number v-model="audioSettings.speakingRate" :min="-50" :max="50" :step="1"
+                                     controls-position="right" />
+                  </div>
+                </el-col>
+              </el-row>
+            </div>
+          </el-col>
+        </el-row>
+
+        <!-- Fourth row: Action buttons -->
+        <el-row :gutter="24" class="settings-row">
+          <el-col :span="24">
+            <div class="action-buttons">
+              <el-button type="primary" @click="convertSelectedPrompts(selectedRows)" :loading="loading"
+                         :disabled="loading || selectedRows.length === 0">
+                {{ t('storyboardProcess.convertSelectedPrompts') }}
+              </el-button>
+              <el-button type="primary" @click="generateSelectedImages(selectedRows)" :loading="isGeneratingImages"
+                         :disabled="isGeneratingAudio || selectedRows.length === 0">
+                {{ t('storyboardProcess.generateSelectedImages') }}
+              </el-button>
+              <el-button type="primary" @click="generateSelectedAudio(selectedRows)" :loading="isGeneratingAudio"
+                         :disabled="isGeneratingImages || selectedRows.length === 0">
+                {{ t('storyboardProcess.generateSelectedAudio') }}
+              </el-button>
+              <el-button type="primary" @click="handleSaveAll" :loading="saving">
+                {{ t('storyboardProcess.saveAll') }}
+              </el-button>
+            </div>
+          </el-col>
+        </el-row>
+
+        <!-- Fifth row: Progress display -->
+        <el-row v-show="imageGenerationProgress.taskId || audioGenerationProgress.taskId" :gutter="24"
+                class="settings-row progress-row">
+          <el-col :span="24">
+            <div class="settings-group">
+              <div class="settings-title">{{ t('storyboardProcess.generationProgress') }}</div>
+              <div class="progress-container">
+                <!-- Audio progress -->
+                <div v-if="audioGenerationProgress.taskId" class="progress-with-button">
+                  <el-progress 
+                               :percentage="audioGenerationProgress.total > 0 ? Math.floor((audioGenerationProgress.current / audioGenerationProgress.total) * 100) : 0"
+                               :format="() => `${audioGenerationProgress.current}/${audioGenerationProgress.total}`"
+                               :status="audioGenerationProgress.status === 'error' ? 'exception' : audioGenerationProgress.status === 'completed' ? 'success' : ''"
+                               :duration="1" />
+                  <el-button type="danger" @click="stopAudioGeneration" style="margin-left: 10px">
+                    {{ t('storyboardProcess.stopGeneration') }}
+                  </el-button>
+                </div>
+                <!-- Image progress -->
+                <div v-if="imageGenerationProgress.taskId" class="progress-with-button">
+                  <el-progress 
+                               :percentage="imageGenerationProgress.total > 0 ? Math.floor((imageGenerationProgress.current / imageGenerationProgress.total) * 100) : 0"
+                               :format="() => `${imageGenerationProgress.current}/${imageGenerationProgress.total}`"
+                               :status="imageGenerationProgress.status === 'error' ? 'exception' : imageGenerationProgress.status === 'completed' ? 'success' : ''"
+                               :duration="1" />
+                  <el-button type="danger" @click="stopImageGeneration" style="margin-left: 10px">
+                    {{ t('storyboardProcess.stopGeneration') }}
+                  </el-button>
+                </div>
+              </div>
+            </div>
+          </el-col>
+        </el-row>
+      </div>
+
+      <el-table ref="tableRef" :data="currentPageData" style="width: 100%" 
+                @selection-change="handleSelectionChange" @select-all="handleSelectAll" row-key="id">
+        <el-table-column type="selection" width="55" align="center" />
+        <el-table-column label="#" width="60" align="center">
+          <template #default="{row}">
+            {{ row.id }}
+          </template>
+        </el-table-column>
+
+        <el-table-column :label="t('storyboardProcess.spanContent')" min-width="240" align="center">
+          <template #default="{ row }">
+            <div class="text-cell">
+              <el-input v-model="row.span" type="textarea" :rows="4" :placeholder="t('storyboardProcess.spanContent')"
+                        @input="handleSceneChange(row)" />
+              <div class="button-group">
+                <el-button type="primary" size="small" @click="generateSelectedAudio([row])"
+                           :loading="isGeneratingAudio" :disabled="isGeneratingImages || isGeneratingAudio">
+                  {{ t('storyboardProcess.generateAudio') }}
+                </el-button>
+              </div>
+            </div>
+          </template>
+        </el-table-column>
+
+        <el-table-column :label="t('storyboardProcess.sceneDescription')" min-width="300" align="center">
+          <template #default="{ row }">
+            <div class="text-cell">
+              <el-input v-model="row.scene" type="textarea" :rows="4" resize="none"
+                        :placeholder="t('storyboardProcess.sceneDescription')" @input="handleSceneChange(row)" />
+
+              <el-input v-model="row.base_scene" @input="handleSceneChange(row)">
+                <template #prepend>
+                  <i>{{ t('storyboardProcess.baseScene') }}</i>
+                </template>
+              </el-input>
+              <div class="button-group">
+                <el-button v-if="row.scene" size="small" type="primary" :loading="row.translating"
+                           @click="convertSelectedPrompts([row])" :disabled="loading">
+                  {{ t('storyboardProcess.convertToPrompt') }}
+                </el-button>
+              </div>
+            </div>
+          </template>
+        </el-table-column>
+
+        <el-table-column :label="t('storyboardProcess.prompt')" min-width="200" align="center">
+          <template #default="{ row }">
+            <div class="text-cell">
+              <el-input v-model="row.prompt" type="textarea" :rows="4" :placeholder="t('storyboardProcess.prompt')"
+                        @input="handleSceneChange(row)" />
+              <div class="button-group">
+                <el-button type="primary" size="small" @click="generateSelectedImages([row])"
+                           :loading="isGeneratingImages" :disabled="isGeneratingImages || isGeneratingAudio">
+                  {{ t('storyboardProcess.generateImage') }}
+                </el-button>
+              </div>
+            </div>
+          </template>
+        </el-table-column>
+
+        <el-table-column :label="t('storyboardProcess.image')" width="200" align="center">
+          <template #default="{ row }">
+            <div class="image-cell">
+              <el-image v-if="row.image" :src="row.image" fit="contain" class="preview-image"
+                        :preview-src-list="[row.image]" :initial-index="0" preview-teleported>
+                <template #error>
+                  <div class="no-image">
+                    {{ t('common.loadError') }}
+                  </div>
+                </template>
+              </el-image>
+              <div v-else class="no-image">
+                {{ t('common.noImage') }}
+              </div>
+            </div>
+          </template>
+        </el-table-column>
+
+        <el-table-column :label="t('storyboardProcess.voicing')" width="200" align="center">
+          <template #default="{ row }">
+            <div class="audio-cell">
+              <audio v-if="row.audio" :src="row.audio" controls class="audio-player" :key="row.audio">
+                <source :src="row.audio" type="audio/mpeg">
+                {{ t('storyboardProcess.audioNotSupported') }}
+              </audio>
+              <div v-else class="no-audio">
+                {{ t('storyboardProcess.noAudio') }}
+              </div>
+            </div>
+          </template>
+        </el-table-column>
+      </el-table>
+
+      <div class="pagination-container">
+        <el-pagination v-model:current-page="currentPage" v-model:page-size="pageSize" :page-sizes="[10]" :total="total"
+                       layout="prev, pager, next" @size-change="handleSizeChange"
+                       @current-change="handleCurrentChange" />
+      </div>
+    </el-card>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { ref, computed, onMounted, nextTick, watch } from 'vue'
+import { useRoute } from 'vue-router'
+import { useI18n } from 'vue-i18n'
+import { ElMessage, ElTable } from 'element-plus'
+import { chapterApi } from '@/api/chapter_api'
+import { mediaApi } from '@/api/media_api'
+import { getResourcePath } from '@/utils/resourcePath'
+import voices from '@/utils/voices'
+import { ImageSettings } from '@/types/imageSettings'
+import { usePromptStyleStore } from '@/store/usePromptStyleStore'
+import { useGeneration } from '@/composables/useGeneration'
+import ImageSettingsControl from '@/components/ImageSettingsControl.vue'
+
+interface AudioSettings {
+  narrator: string
+  speakingRate: number
+}
+
+interface Scene {
+  id: string    // Add index field
+  span: string
+  base_scene: string
+  scene: string
+  prompt: string
+  translating: boolean
+  modified: boolean
+  image: string
+  audio: string
+  reference_image_infos: {
+    character1: string
+    character2: string
+    scene: string
+  }
+}
+
+const route = useRoute()
+const { t } = useI18n()
+const projectName = computed(() => route.params.name as string)
+
+// Create separate generator instances for images and audio
+const { 
+  isGenerating: isGeneratingImages, 
+  generationProgress: imageGenerationProgress, 
+  start: startImageGeneration, 
+  stop: stopImageGeneration 
+} = useGeneration();
+
+const { 
+  isGenerating: isGeneratingAudio, 
+  generationProgress: audioGenerationProgress, 
+  start: startAudioGeneration, 
+  stop: stopAudioGeneration 
+} = useGeneration();
+
+// Get prompt style store
+const promptStyleStore = usePromptStyleStore()
+
+// Chapter list related
+const chapterList = ref<{ label: string; value: string }[]>([])
+const chapterName = ref('')
+
+// Image settings
+const imageSettings = ref<ImageSettings>({
+  width: 512,
+  height: 768,
+  style: 'base'
+})
+
+// Audio settings
+const audioSettings = ref<AudioSettings>({
+  narrator: '',
+  speakingRate: 0
+})
+
+// Voice list
+const voiceList = ref([])
+
+// Fetch chapter list
+const fetchChapterList = async () => {
+  try {
+    const data = await chapterApi.getChapterList(projectName.value)
+    if (data) {
+      chapterList.value = data.map((chapter: string) => ({
+        label: chapter,
+        value: chapter
+      }))
+      // Select the first chapter by default if available
+      if (chapterList.value.length > 0) {
+        chapterName.value = chapterList.value[0].value
+        fetchSceneList() // Fetch scene list for the first chapter
+      }
+    }
+  } catch (error) {
+    console.error('Failed to fetch chapter list:', error)
+  }
+}
+
+// Handle chapter change
+const handleChapterChange = () => {
+  selectedRows.value = [] // Clear selected state
+  isAllSelected.value = false // Reset select all state
+  fetchSceneList() // Fetch scene list when selected chapter changes
+}
+
+// Add selected rows state
+const selectedRows = ref<Scene[]>([])
+const isAllSelected = ref(false)  // Track select all state
+
+// Computed property for all checked
+const allChecked = computed({
+  get() {
+    return isAllSelected.value
+  },
+  set(newValue) {
+    isAllSelected.value = newValue
+    if (newValue) {
+      // Select all rows when select all is checked
+      selectedRows.value = [...sceneList.value]
+    } else {
+      // Clear selected rows when select all is unchecked
+      selectedRows.value = []
+    }
+    // Update current page selection state
+    nextTick(() => {
+      currentPageData.value.forEach(row => {
+        tableRef.value?.toggleRowSelection(row, newValue)
+      })
+    })
+  }
+})
+
+// Handle select all
+const handleSelectAll = (selection: Scene[]) => {
+  // Determine if it's select all or deselect all
+  const isSelectAll = selection.length === currentPageData.value.length
+  allChecked.value = isSelectAll
+}
+
+// Handle selection change
+const handleSelectionChange = (selection: Scene[]) => {
+  if (!isAllSelected.value) {
+    // Update selected rows normally if not in select all state
+    selectedRows.value = selection
+  }
+}
+
+// Handle page change
+const handleCurrentChange = (val: number) => {
+  currentPage.value = val
+  // Restore selection state
+  nextTick(() => {
+    if (isAllSelected.value) {
+      // Select all rows on current page if in select all state
+      currentPageData.value.forEach(row => {
+        tableRef.value?.toggleRowSelection(row, true)
+      })
+    } else {
+      // Otherwise, only select previously selected rows
+      currentPageData.value.forEach(row => {
+        const isSelected = selectedRows.value.some(selected => selected.id === row.id)
+        tableRef.value?.toggleRowSelection(row, isSelected)
+      })
+    }
+  })
+}
+
+// Handle page size change
+const handleSizeChange = (val: number) => {
+  pageSize.value = val
+  currentPage.value = 1
+}
+
+// Batch operation methods
+const convertSelectedPrompts = async (selectedRows: Scene[]) => {
+  try {
+    if (selectedRows.length === 0) {
+      ElMessage.warning(t('storyboardProcess.noSelection'))
+      return
+    }
+  
+    loading.value = true
+    
+    const scenesToConvert = selectedRows.filter(row => row.scene)
+    if (scenesToConvert.length === 0) {
+      return
+    }
+
+    // Get all scene descriptions to convert
+    const descriptions = scenesToConvert.map(row => "[" + row.base_scene + "]," + row.scene)
+    scenesToConvert.forEach(row => {
+      row.translating = true // Set to translating
+    })
+    
+    // Batch convert
+    const results = await chapterApi.translatePrompt(projectName.value, descriptions)
+    
+    // Update scene prompts
+    scenesToConvert.forEach((row: Scene, index) => {
+      row.prompt = results[index]
+      row.modified = true
+      row.translating = false // Set to translation complete
+    })
+    
+    ElMessage.success(t('common.success'))
+  } catch (error) {
+    ElMessage.error(t('common.error'))
+    console.error('Batch prompt conversion failed:', error)
+  } finally {
+    loading.value = false
+  }
+}
+
+const extractReferenceImageInfo = (scene: Scene) => {  
+  let reference_image_infos = {
+    character1: '',
+    character2: '',
+    scene: scene.base_scene
+  }
+ 
+  const characters = scene.scene.match(/\{([^}]+)\}/g)?.map(match => match.slice(1, -1));
+ 
+  if (characters && characters.length > 0) {
+    reference_image_infos.character1 = characters[0]
+    if (characters.length > 1) {
+      reference_image_infos.character2 = characters[1]
+    }
+  }
+  return reference_image_infos
+}
+
+// Generate images
+const generateSelectedImages = (selectedRows: Scene[]) => {
+  const scenes = selectedRows.filter(scene => scene.prompt)
+  if (scenes.length === 0) {
+    ElMessage.warning(t('storyboardProcess.noPrompts'))
+    return
+  }
+
+  const prompts = scenes.map(scene => ({
+    id: scene.id,
+    prompt: scene.prompt
+  }))
+
+  const reference_image_infos = scenes.map(extractReferenceImageInfo)
+  startImageGeneration(prompts, () => mediaApi.generateImages({
+    project_name: projectName.value,
+    chapter_name: chapterName.value,
+    imageSettings: imageSettings.value,
+    prompts,
+    reference_image_infos
+  }))
+}
+
+// Watch image generation status, refresh images
+watch(() => [...imageGenerationProgress.completedIds], (newIds) => {
+  if (newIds.length === 0) return;
+  const lastCompletedId = newIds[newIds.length - 1];
+  const scene = sceneList.value.find(s => s.id === lastCompletedId);
+  if (scene) {
+    scene.image = getResourcePath(projectName.value, chapterName.value, scene.id, 'image');
+  }
+});
+
+// Generate audio
+const generateSelectedAudio = (selectedRows: Scene[]) => {
+  if (selectedRows.length === 0) {
+    ElMessage.warning(t('storyboardProcess.noSelection'))
+    return
+  }
+
+  const scenes = selectedRows.filter(scene => scene.span)
+  if (scenes.length === 0) {
+    ElMessage.warning(t('storyboardProcess.noContent'))
+    return
+  }
+
+  const prompts = scenes.map(scene => ({
+    id: scene.id,
+    prompt: scene.span
+  }));
+  
+  const audioApiParams = {
+    project_name: projectName.value,
+    chapter_name: chapterName.value,
+    audioSettings: {
+      voice: audioSettings.value.narrator,
+      rate: `${audioSettings.value.speakingRate >= 0 ? '+' : ''}${audioSettings.value.speakingRate}%`
+    },
+    prompts,
+  };
+
+  startAudioGeneration(prompts, () => mediaApi.generateAudio(audioApiParams));
+}
+
+// Watch audio generation status, refresh audio
+watch(() => [...audioGenerationProgress.completedIds], (newIds) => {
+  if (newIds.length === 0) return;
+  const lastCompletedId = newIds[newIds.length - 1];
+  const scene = sceneList.value.find(s => s.id === lastCompletedId);
+  if (scene) {
+    scene.audio = getResourcePath(projectName.value, chapterName.value, scene.id, 'audio');
+  }
+});
+
+const loading = ref(false)
+const sceneList = ref<Scene[]>([])
+const currentPage = ref(1)
+const pageSize = ref(10)
+const total = ref(0)
+
+// Current page data
+const currentPageData = computed(() => {
+  const start = (currentPage.value - 1) * pageSize.value
+  const end = start + pageSize.value
+  return sceneList.value.slice(start, end)
+})
+
+// Update pagination info
+const updatePagination = () => {
+  total.value = sceneList.value.length
+  currentPage.value = 1 // Reset to first page
+}
+
+// Fetch scene list
+const fetchSceneList = async () => {
+  if (!chapterName.value) return
+  
+  loading.value = true
+  try {
+    const data = await chapterApi.getChapterSceneList(projectName.value, chapterName.value)
+    
+    if (data) {
+      sceneList.value = data.map((scene: any) => ({
+        id: scene.id,
+        base_scene: scene.base_scene,
+        scene: scene.scene,
+        span: scene.content,
+        prompt: scene.prompt,
+        image: getResourcePath(projectName.value, chapterName.value, scene.id, 'image'),
+        audio: getResourcePath(projectName.value, chapterName.value, scene.id, 'audio'),
+        translating: false,
+        modified: false
+      }))
+      updatePagination()
+    }
+  } catch (error) {
+    console.error('Failed to fetch scene list:', error)
+  } finally {
+    loading.value = false
+  }
+}
+
+// Handle scene content change
+const handleSceneChange = (row: Scene) => {
+  row.modified = true
+}
+
+// Save all modifications
+const handleSaveAll = async () => {
+  try {
+    saving.value = true
+    // Filter modified scenes
+    const modifiedScenes = sceneList.value.filter(scene => scene.modified)
+    if (modifiedScenes.length === 0) {
+      ElMessage.info(t('common.noDataToProcess'))
+      return
+    }
+
+    // Call save API
+    await chapterApi.saveScenes(projectName.value, chapterName.value, modifiedScenes)
+    
+    // Reset modified flags
+    modifiedScenes.forEach(scene => {
+      scene.modified = false
+    })
+    
+    ElMessage.success(t('common.success'))
+  } catch (error: any) {
+    ElMessage.error(error.message || t('common.error'))
+  } finally {
+    saving.value = false
+  }
+}
+
+const saving = ref(false)
+
+// Add table reference
+const tableRef = ref<InstanceType<typeof ElTable>>()
+
+async function getPromptStyle() {
+  // Fetch prompt styles
+  await promptStyleStore.fetchStyles()
+}
+
+onMounted(() => {
+  for (const voice in voices) {
+    voiceList.value.push({ label: voice + " - " + voices[voice], value: voice })
+  }
+  audioSettings.value.narrator = voiceList.value[0].value
+  
+  getPromptStyle()
+  fetchChapterList() // Fetch chapter list on component mount
+})
+</script>
+
+<style lang="scss" scoped>
+.storyboard-process {
+  padding: 32px;
+  min-height: 100vh;
+  background: var(--bg);
+  
+  .scene-table-card {
+    margin-bottom: 20px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    box-shadow: var(--shadow);
+    
+    :deep(.el-card__header) {
+      background: var(--muted);
+      border-bottom: 1px solid var(--border);
+      padding: 20px;
+    }
+    
+    :deep(.el-card__body) {
+      padding: 24px;
+      background: var(--surface);
+    }
+    
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      color: var(--text);
+      font-weight: 600;
+      font-size: 18px;
+    }
+  }
+  
+  .settings-container {
+    .settings-row {
+      margin-bottom: 20px;
+      
+      &:last-child {
+        margin-bottom: 0;
+      }
+      
+      .settings-group {
+        background: var(--surface);
+        border-radius: 12px;
+        padding: 20px;
+        border: 1px solid var(--border);
+        box-shadow: var(--shadow);
+        
+        .settings-title {
+          font-size: 16px;
+          color: var(--text);
+          margin-bottom: 16px;
+          font-weight: 600;
+        }
+        
+        .input-with-label {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          
+          .input-label {
+            white-space: nowrap;
+            color: var(--text);
+          }
+          
+          .el-input-number {
+            width: 120px;
+          }
+          
+          .style-select,
+          .narrator-select {
+            width: 100%;
+          }
+        }
+      }
+      
+      &.progress-row {
+        .progress-container {
+          .progress-with-button {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+            
+            .el-progress {
+              flex: 1;
+            }
+            
+            .el-button {
+              flex-shrink: 0;
+            }
+          }
+        }
+      }
+    }
+  }
+  
+  .action-buttons {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  
+  .text-cell {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    
+    .button-group {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+
+      .el-button {
+        width: 120px;
+      }
+    }
+  }
+  
+  .el-pagination {
+    margin-top: 20px;
+    display: flex;
+    justify-content: center;
+  }
+  
+  .chapter-select {
+    width: 100%;
+  }
+  
+  :deep(.el-select__wrapper) {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+  }
+  
+  :deep(.el-input__wrapper),
+  :deep(.el-textarea__inner) {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+  }
+  
+  :deep(.el-input-number .el-input__wrapper) {
+    background: var(--bg);
+    border: 1px solid var(--border);
+  }
+  
+  :deep(.el-table) {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+  
+  :deep(.el-table__header) {
+    background: var(--muted);
+  }
+  
+  :deep(.el-table__cell) {
+    padding: 12px 8px;
+    background: var(--surface);
+    border-color: var(--border);
+  }
+  
+  :deep(.el-table .cell) {
+    color: var(--text);
+  }
+  
+  :deep(.el-table__header .cell) {
+    font-weight: 600;
+    color: var(--text);
+  }
+  
+  :deep(.el-table__body-wrapper .el-table__row:hover > td) {
+    background: var(--muted) !important;
+  }
+}
+
+.audio-cell {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 50px;
+  
+  .audio-player {
+    width: 100%;
+    max-width: 180px;
+  }
+  
+  .no-audio {
+    color: var(--subtext);
+    font-size: 14px;
+  }
+}
+
+.image-cell {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  
+  .preview-image {
+    max-height: 150px;
+    border-radius: 8px;
+  }
+  
+  .no-image {
+    color: var(--subtext);
+    font-size: 14px;
+  }
+}
+
+.pagination-container {
+  margin-top: 24px;
+  display: flex;
+  justify-content: center;
+  
+  :deep(.el-pagination) {
+    gap: 8px;
+  }
+  
+  :deep(.el-pager li) {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    
+    &.is-active {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: white;
+    }
+    
+    &:hover {
+      background: var(--muted);
+    }
+  }
+  
+  :deep(.btn-prev),
+  :deep(.btn-next) {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    
+    &:hover {
+      background: var(--muted);
+    }
+  }
+}
+</style>

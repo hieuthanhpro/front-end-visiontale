@@ -1,0 +1,312 @@
+/**
+ * VisionTale - Conceptual Theme System
+ * 10 mood-based themes with CSS variables
+ */
+
+/* Default fallback theme */
+:root {
+  --bg: #ffffff;
+  --surface: #f6f6f6;
+  --muted: #9ca3af;
+  --accent: #4f46e5;
+  --accent-2: #818cf8;
+  --text: #111827;
+  --subtext: #6b7280;
+  --glass: rgba(255, 255, 255, 0.05);
+  --border: rgba(0, 0, 0, 0.1);
+  --shadow: rgba(0, 0, 0, 0.1);
+}
+
+/* 1) Forest After Rain — Rừng sau cơn mưa */
+:root.theme-forest {
+  --bg: #21332A;
+  --surface: #384B40;
+  --muted: #6B8F74;
+  --accent: #8FB6A0;
+  --accent-2: #C9D9CC;
+  --text: #E6F0EB;
+  --subtext: #BFD6CA;
+  --glass: rgba(255, 255, 255, 0.04);
+  --border: rgba(255, 255, 255, 0.08);
+  --shadow: rgba(0, 0, 0, 0.3);
+  --theme-bg-image: url('/src/images/forest_after_rain.jpg');
+}
+
+/* 2) Moonlit Reverie — Đêm trăng mộng mị */
+:root.theme-moon {
+  --bg: #0B1530;
+  --surface: #243754;
+  --muted: #7A8FB0;
+  --accent: #B9C8E6;
+  --accent-2: #DDE9FF;
+  --text: #F5F9FF;
+  --subtext: #C7D7F0;
+  --glass: rgba(255, 255, 255, 0.06);
+  --border: rgba(255, 255, 255, 0.1);
+  --shadow: rgba(0, 0, 0, 0.4);
+  --theme-bg-image: url('/src/images/moonlit_reverie.jpeg');
+}
+
+/* 3) Whispering Spring — Xuân thì thì thầm */
+:root.theme-spring {
+  --bg: #F8EEF0;
+  --surface: #F4DDE3;
+  --muted: #E6BBC7;
+  --accent: #7FC7B5;
+  --accent-2: #CDECE0;
+  --text: #2D1B1F;
+  --subtext: #6B4E54;
+  --glass: rgba(255, 255, 255, 0.5);
+  --border: rgba(0, 0, 0, 0.06);
+  --shadow: rgba(0, 0, 0, 0.08);
+  --theme-bg-image: url('/src/images/whispering_spring.jpg');
+}
+
+/* 4) Ethereal Mist — Sương mờ vô ảnh */
+:root.theme-mist {
+  --bg: #F2F4F5;
+  --surface: #E7EAEC;
+  --muted: #C7CBD0;
+  --accent: #9EA7AE;
+  --accent-2: #BAC3C8;
+  --text: #2C3338;
+  --subtext: #6B7279;
+  --glass: rgba(255, 255, 255, 0.6);
+  --border: rgba(0, 0, 0, 0.08);
+  --shadow: rgba(0, 0, 0, 0.06);
+  --theme-bg-image: url('/src/images/ethereal_mist.jpg');
+}
+
+/* 5) Candlelight Haven — Nơi trú dưới ánh nến */
+:root.theme-candle {
+  --bg: #2E1B10;
+  --surface: #5D3C2D;
+  --muted: #B8865B;
+  --accent: #FFD9A6;
+  --accent-2: #F6E7D6;
+  --text: #FFF8F0;
+  --subtext: #E6D4C5;
+  --glass: rgba(255, 255, 255, 0.05);
+  --border: rgba(255, 255, 255, 0.1);
+  --shadow: rgba(0, 0, 0, 0.5);
+  --theme-bg-image: url('/src/images/candlelight_haven.webp');
+}
+
+/* 6) Tide of Memories — Sóng ký ức */
+:root.theme-tide {
+  --bg: #0F3A47;
+  --surface: #2B6E7F;
+  --muted: #8FB2B9;
+  --accent: #F5CBA7;
+  --accent-2: #EBDCC6;
+  --text: #F0F8F9;
+  --subtext: #C5DDE3;
+  --glass: rgba(255, 255, 255, 0.05);
+  --border: rgba(255, 255, 255, 0.12);
+  --shadow: rgba(0, 0, 0, 0.35);
+  --theme-bg-image: url('/src/images/tide_of_memories.jpg');
+}
+
+/* 7) Cosmic Dreamscape — Mộng không gian */
+:root.theme-cosmic {
+  --bg: #04040B;
+  --surface: #251A3B;
+  --muted: #4A2B6B;
+  --accent: #A88CE0;
+  --accent-2: #EBD8FF;
+  --text: #F8F5FF;
+  --subtext: #D4C8E8;
+  --glass: rgba(255, 255, 255, 0.03);
+  --border: rgba(168, 140, 224, 0.2);
+  --shadow: rgba(0, 0, 0, 0.6);
+  --theme-bg-image: url('/src/images/cosmic_dreamscape.jpg');
+}
+
+/* 8) Autumn's Embrace — Vòng tay mùa thu */
+:root.theme-autumn {
+  --bg: #3B2E2A;
+  --surface: #8B4D2E;
+  --muted: #D98C3F;
+  --accent: #EFD6A2;
+  --accent-2: #C9A78E;
+  --text: #FFF5EB;
+  --subtext: #E6D8CC;
+  --glass: rgba(255, 255, 255, 0.06);
+  --border: rgba(255, 255, 255, 0.12);
+  --shadow: rgba(0, 0, 0, 0.4);
+  --theme-bg-image: url('/src/images/autumn_embrace.png');
+}
+
+/* 9) Lost Library — Thư viện lạc lối */
+:root.theme-library {
+  --bg: #2E2A25;
+  --surface: #504338;
+  --muted: #8F7A66;
+  --accent: #D9C9B1;
+  --accent-2: #F5F0E8;
+  --text: #F8F5F0;
+  --subtext: #D9CFC2;
+  --glass: rgba(255, 255, 255, 0.04);
+  --border: rgba(255, 255, 255, 0.1);
+  --shadow: rgba(0, 0, 0, 0.45);
+  --theme-bg-image: url('/src/images/lost_library.avif');
+}
+
+/* 10) Glass Garden — Khu vườn pha lê */
+:root.theme-glass {
+  --bg: #F7FBFA;
+  --surface: #DFF3EE;
+  --muted: #BFEAE0;
+  --accent: #6FCDB3;
+  --accent-2: #98E0CF;
+  --text: #0D3D34;
+  --subtext: #4A7B6F;
+  --glass: rgba(255, 255, 255, 0.7);
+  --border: rgba(111, 205, 179, 0.2);
+  --shadow: rgba(0, 0, 0, 0.05);
+  --theme-bg-image: url('/src/images/glass_garden.avif');
+}
+
+/* Global theme application */
+body {
+  background-color: var(--bg);
+  color: var(--text);
+  transition: background-color 0.5s ease, color 0.5s ease;
+  position: relative;
+}
+
+/* Theme background with moodboard image */
+body::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image: var(--theme-bg-image);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+  opacity: 0.15;
+  z-index: -2;
+  transition: opacity 0.8s ease;
+}
+
+/* Subtle gradient overlay for depth */
+body::after {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: radial-gradient(
+    ellipse at top,
+    transparent 0%,
+    var(--bg) 100%
+  );
+  z-index: -1;
+  pointer-events: none;
+}
+
+/* Glass morphism effect */
+.glass-surface {
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--surface) 95%, white),
+    var(--surface)
+  );
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 8px 32px var(--shadow);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+}
+
+/* Elevated card with theme-aware styling */
+.theme-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: 0 4px 16px var(--shadow);
+  transition: all 0.3s ease;
+}
+
+.theme-card:hover {
+  box-shadow: 0 8px 24px var(--shadow);
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--accent) 50%, var(--border));
+}
+
+/* Button styles */
+.theme-button {
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  color: var(--bg);
+  border: none;
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--accent) 30%, transparent);
+  transition: all 0.3s ease;
+}
+
+.theme-button:hover {
+  box-shadow: 0 6px 20px color-mix(in srgb, var(--accent) 50%, transparent);
+  transform: translateY(-1px);
+}
+
+/* Input fields */
+.theme-input {
+  background: color-mix(in srgb, var(--surface) 60%, var(--bg));
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 8px;
+  transition: all 0.3s ease;
+}
+
+.theme-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent);
+  outline: none;
+}
+
+.theme-input::placeholder {
+  color: var(--subtext);
+}
+
+/* Scroll bar theming */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--muted);
+  border-radius: 5px;
+  border: 2px solid var(--bg);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--accent);
+}
+
+/* Selection color */
+::selection {
+  background: var(--accent);
+  color: var(--bg);
+}
+
+::-moz-selection {
+  background: var(--accent);
+  color: var(--bg);
+}
+
+/* Subtle parallax background (optional enhancement) */
+.parallax-bg {
+  background-image: 
+    radial-gradient(circle at 20% 50%, color-mix(in srgb, var(--accent) 5%, transparent) 0%, transparent 50%),
+    radial-gradient(circle at 80% 80%, color-mix(in srgb, var(--accent-2) 5%, transparent) 0%, transparent 50%);
+  background-attachment: fixed;
+}
+
