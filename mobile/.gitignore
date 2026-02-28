@@ -1,47 +1,66 @@
-# dependencies
-node_modules/
-.pnp
-.pnp.js
-
-# testing
-coverage/
-
-# production
-dist/
-build/
-
-# misc
-.env
-.env.local
-.env.*.local
-*.pem
-
-# logs
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-lerna-debug.log*
-
-# Mobile apps
+# Expo
 .expo/
 .expo-shared/
 dist/
 npm-debug.*
-*.jks
-*.p8
-*.p12
-*.key
-*.mobileprovision
-*.orig.*
-web-build/
+yarn-debug.*
+yarn-error.*
 
-# IDE
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE & Editor
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
 .DS_Store
+.project
+.pydevproject
+.settings/
+*.sublime-workspace
 
-# Expo
-.env.local
+# Logs
+logs/
+*.log
+lerna-debug.log*
+
+# Runtime
+tmp/
+temp/
+.cache/
+
+# Mobile build outputs
+android/
+ios/
+.gradle
+build/
+local.properties
+*.keystore
+*.jks
+*.p8
+*.p12
+*.mobileprovision
+*.orig.*
+
+# EAS Build
+.eas/
+
+# Testing
+coverage/
+.nyc_output/
+
+# Yarn
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.yarn/install-state.gz
+.pnp.*

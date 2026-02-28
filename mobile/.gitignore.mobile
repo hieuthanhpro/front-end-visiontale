@@ -1,0 +1,39 @@
+# Expo
+.expo/
+.expo-shared/
+dist/
+npm-debug.*
+
+# Node
+node_modules/
+.pnp
+.pnp.js
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Mobile
+*.jks
+*.p12
+*.p8
+*.mobileprovision
+*.orig.*
+*.hockeyapp
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots
+
+# Build
+build/
+.gradle
+local.properties

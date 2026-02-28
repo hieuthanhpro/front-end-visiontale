@@ -11,6 +11,7 @@
   "dependencies": {
     "@element-plus/icons-vue": "^2.3.1",
     "@expo/vector-icons": "^15.1.1",
+    "@react-native-async-storage/async-storage": "^3.0.1",
     "@vueuse/core": "^10.7.2",
     "axios": "^1.7.9",
     "element-plus": "^2.5.3",
